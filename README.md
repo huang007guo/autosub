@@ -8,7 +8,8 @@ Autosub is a utility for automatic speech recognition and subtitle generation. I
 
 1. Install [ffmpeg](https://www.ffmpeg.org/).
 2. Run `pip install autosub`.
- OR
+
+OR:
  ```
    setup.py --help
     Common commands: (see '--help-commands' for more)
