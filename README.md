@@ -90,8 +90,9 @@ optional arguments:
   --list-languages      List all available source/destination languages
 ```
 Japanese file to Chinese (Simplified) sub:
+```
 autosub -S ja -D zh-CN file.mp4
-
+```
 ### License
 
 MIT
