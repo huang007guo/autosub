@@ -9,6 +9,7 @@ Autosub is a utility for automatic speech recognition and subtitle generation. I
  只能在linux，python2下使用
 ```
  apt install python
+ apt install python-pip
  apt install ffmpeg
 ```
 1. Install [ffmpeg](https://www.ffmpeg.org/).
