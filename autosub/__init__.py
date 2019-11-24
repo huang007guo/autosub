@@ -275,6 +275,7 @@ def generate_subtitles( # pylint: disable=too-many-locals,too-many-arguments
             pbar.finish()
 
             if src_language.split("-")[0] != dst_language.split("-")[0]:
+                print(api_key)
                 if api_key:
                     google_translate_api_key = api_key
                     translator = Translator(dst_language, google_translate_api_key,
