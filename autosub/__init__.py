@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Defines autosub's main functionality.
 """

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Defines subtitle formatters used by autosub.
 """
