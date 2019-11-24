@@ -71,6 +71,7 @@ class FLACConverter(object): # pylint: disable=too-few-public-methods
                        "-y", "-i", self.source_path,
                        "-loglevel", "error", temp.name]
             use_shell = True if os.name == "nt" else False
+            print(command)
             subprocess.check_output(command, stdin=open(os.devnull), shell=use_shell)
             read_data = temp.read()
             temp.close()
@@ -188,6 +189,7 @@ def extract_audio(filename, channels=1, rate=16000):
                "-ac", str(channels), "-ar", str(rate),
                "-loglevel", "error", temp.name]
     use_shell = True if os.name == "nt" else False
+    print(command)
     subprocess.check_output(command, stdin=open(os.devnull), shell=use_shell)
     return temp.name, rate
 
