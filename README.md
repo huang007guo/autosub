@@ -98,6 +98,7 @@ optional arguments:
 Japanese file to Chinese (Simplified) sub:
 ```
 autosub -S ja -D zh-CN file.mp4
+autosub -S ja -D ja file.mp4
 ```
 ### License
 
