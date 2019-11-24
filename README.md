@@ -6,7 +6,9 @@ Autosub is a utility for automatic speech recognition and subtitle generation. I
 
 ### Installation
 
- 只能在linux，python2下使用
+ffmpeg:写成绝对路径[__init__.py](./autosub/__init__.py).：
+    E:\\YOKA\\project\\autosub\\ffmpeg\\bin\\ffmpeg.exe
+
 ```
  apt install ffmpeg
 ```
