@@ -292,6 +292,8 @@ def generate_subtitles( # pylint: disable=too-many-locals,too-many-arguments
                                   api_key=GOOGLE_SPEECH_API_KEY)
 
     transcripts = []
+    translated_transcripts = []
+    dest = output
     if regions:
         try:
             widgets = ["Converting speech regions to FLAC files: ", Percentage(), ' ', Bar(), ' ',
@@ -321,12 +323,19 @@ def generate_subtitles( # pylint: disable=too-many-locals,too-many-arguments
                 prompt = "Translating from {0} to {1}: ".format(src_language, dst_language)
                 widgets = [prompt, Percentage(), ' ', Bar(), ' ', ETA()]
                 pbar = ProgressBar(widgets=widgets, maxval=len(regions)).start()
-                translated_transcripts = []
                 for i, transcript in enumerate(pool.imap(translator, transcripts)):
                     translated_transcripts.append(transcript)
                     pbar.update(i)
                 pbar.finish()
-                transcripts = translated_transcripts
+                #翻译的字幕
+                timed_subtitles = [(r, t) for r, t in zip(regions, translated_transcripts) if t]
+                formatter = FORMATTERS.get(subtitle_file_format)
+                formatted_subtitles = formatter(timed_subtitles)
+                if not dest:
+                    base = os.path.splitext(source_path)[0]
+                    destFile = "{base}.{format}".format(base=base, format=subtitle_file_format)
+                with open(destFile, 'wb') as output_file:
+                    output_file.write(formatted_subtitles.encode("utf-8"))
                 # else:
                 #     print(
                 #         "Error: Subtitle translation requires specified Google Translate API key. "
@@ -340,19 +349,18 @@ def generate_subtitles( # pylint: disable=too-many-locals,too-many-arguments
             pool.join()
             print("Cancelling transcription")
             raise
+        finally:
+            #原始字幕
+            timed_subtitles = [(r, t) for r, t in zip(regions, transcripts) if t]
+            formatter = FORMATTERS.get(subtitle_file_format)
+            formatted_subtitles = formatter(timed_subtitles)
+            if not dest:
+                base = os.path.splitext(source_path)[0]
+                destFile = "{base}.raw.{format}".format(base=base, format=subtitle_file_format)
+            with open(destFile, 'wb') as output_file:
+                output_file.write(formatted_subtitles.encode("utf-8"))
 
-    timed_subtitles = [(r, t) for r, t in zip(regions, transcripts) if t]
-    formatter = FORMATTERS.get(subtitle_file_format)
-    formatted_subtitles = formatter(timed_subtitles)
 
-    dest = output
-
-    if not dest:
-        base = os.path.splitext(source_path)[0]
-        dest = "{base}.{format}".format(base=base, format=subtitle_file_format)
-
-    with open(dest, 'wb') as output_file:
-        output_file.write(formatted_subtitles.encode("utf-8"))
 
     os.remove(audio_filename)
 
