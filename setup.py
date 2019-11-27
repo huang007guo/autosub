@@ -39,6 +39,7 @@ setup(
         'pysrt>=1.0.1',
         'progressbar2>=3.34.3',
         'six>=1.11.0',
+        'googletrans>=2.0.0'
     ],
     license=open("LICENSE").read()
 )

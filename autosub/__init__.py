@@ -18,6 +18,8 @@ import tempfile
 import wave
 import json
 import requests
+from googletrans import Translator
+
 try:
     from json.decoder import JSONDecodeError
 except ImportError:
@@ -32,9 +34,9 @@ from autosub.constants import (
 from autosub.formatters import FORMATTERS
 
 DEFAULT_SUBTITLE_FORMAT = 'srt'
-DEFAULT_CONCURRENCY = 10
-DEFAULT_SRC_LANGUAGE = 'en'
-DEFAULT_DST_LANGUAGE = 'en'
+DEFAULT_CONCURRENCY = 3
+DEFAULT_SRC_LANGUAGE = 'ja'
+DEFAULT_DST_LANGUAGE = 'zh-CN'
 
 
 def percentile(arr, percent):
@@ -118,7 +120,39 @@ class SpeechRecognizer(object): # pylint: disable=too-few-public-methods
             return None
 
 
-class Translator(object): # pylint: disable=too-few-public-methods
+# class Translator1(object): # pylint: disable=too-few-public-methods
+#     """
+#     Class for translating a sentence from a one language to another.
+#     """
+#     def __init__(self, language, api_key, src, dst):
+#         self.language = language
+#         self.api_key = api_key
+#         self.service = build('translate', 'v2',
+#                              developerKey=self.api_key)
+#         self.src = src
+#         self.dst = dst
+#
+#     def __call__(self, sentence):
+#         try:
+#             if not sentence:
+#                 return None
+#
+#             result = self.service.translations().list( # pylint: disable=no-member
+#                 source=self.src,
+#                 target=self.dst,
+#                 q=[sentence]
+#             ).execute()
+#
+#             if 'translations' in result and result['translations'] and \
+#                 'translatedText' in result['translations'][0]:
+#                 return result['translations'][0]['translatedText']
+#
+#             return None
+#
+#         except KeyboardInterrupt:
+#             return None
+
+class Translator1(object): # pylint: disable=too-few-public-methods
     """
     Class for translating a sentence from a one language to another.
     """
@@ -129,26 +163,19 @@ class Translator(object): # pylint: disable=too-few-public-methods
                              developerKey=self.api_key)
         self.src = src
         self.dst = dst
+        self.translator = Translator(service_urls=[
+            'translate.google.cn',
+            # 'translate.google.com',
+            # 'translate.google.co.kr',
+        ])
 
     def __call__(self, sentence):
         try:
             if not sentence:
                 return None
-
-            result = self.service.translations().list( # pylint: disable=no-member
-                source=self.src,
-                target=self.dst,
-                q=[sentence]
-            ).execute()
-
-            if 'translations' in result and result['translations'] and \
-                'translatedText' in result['translations'][0]:
-                return result['translations'][0]['translatedText']
-
-            return None
-
+            return self.translator.translate(sentence, src=self.src, dest=self.dst).text
         except KeyboardInterrupt:
-            return None
+            return '翻译错误'
 
 
 def which(program):
@@ -173,10 +200,13 @@ def which(program):
                 return exe_file
     return None
 
-
-def extract_audio(filename, channels=1, rate=16000):
+# def extract_audio(filename, channels=1, rate=16000):
+def extract_audio(filename, channels=1, rate=44100):
     """
+    生成音频文件
     Extract audio from an input file to a temporary WAV file.
+    :param channels 音轨
+    :param rate 采样率
     """
     temp = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
     if not os.path.isfile(filename):
@@ -196,6 +226,8 @@ def extract_audio(filename, channels=1, rate=16000):
 
 def find_speech_regions(filename, frame_width=4096, min_region_size=0.5, max_region_size=6): # pylint: disable=too-many-locals
     """
+    语音识别开始
+    :param frame_width 读取声音数据大小
     Perform voice activity detection on a given audio file.
     """
     reader = wave.open(filename)
@@ -208,6 +240,7 @@ def find_speech_regions(filename, frame_width=4096, min_region_size=0.5, max_reg
     energies = []
 
     for _ in range(n_chunks):
+        #读取声音数据
         chunk = reader.readframes(frame_width)
         energies.append(audioop.rms(chunk, sample_width * n_channels))
 
@@ -245,11 +278,15 @@ def generate_subtitles( # pylint: disable=too-many-locals,too-many-arguments
     """
     Given an input audio/video file, generate subtitles in the specified language and format.
     """
+    #生成音频文件
     audio_filename, audio_rate = extract_audio(source_path)
 
+    #分段
     regions = find_speech_regions(audio_filename)
+    print(regions)
 
     pool = multiprocessing.Pool(concurrency)
+    #转换为.flac临时文件音频
     converter = FLACConverter(source_path=audio_filename)
     recognizer = SpeechRecognizer(language=src_language, rate=audio_rate,
                                   api_key=GOOGLE_SPEECH_API_KEY)
@@ -276,26 +313,26 @@ def generate_subtitles( # pylint: disable=too-many-locals,too-many-arguments
 
             if src_language.split("-")[0] != dst_language.split("-")[0]:
                 print(api_key)
-                if api_key:
-                    google_translate_api_key = api_key
-                    translator = Translator(dst_language, google_translate_api_key,
-                                            dst=dst_language,
-                                            src=src_language)
-                    prompt = "Translating from {0} to {1}: ".format(src_language, dst_language)
-                    widgets = [prompt, Percentage(), ' ', Bar(), ' ', ETA()]
-                    pbar = ProgressBar(widgets=widgets, maxval=len(regions)).start()
-                    translated_transcripts = []
-                    for i, transcript in enumerate(pool.imap(translator, transcripts)):
-                        translated_transcripts.append(transcript)
-                        pbar.update(i)
-                    pbar.finish()
-                    transcripts = translated_transcripts
-                else:
-                    print(
-                        "Error: Subtitle translation requires specified Google Translate API key. "
-                        "See --help for further information."
-                    )
-                    return 1
+                # if api_key:
+                google_translate_api_key = api_key
+                translator = Translator1(dst_language, google_translate_api_key,
+                                        dst=dst_language,
+                                        src=src_language)
+                prompt = "Translating from {0} to {1}: ".format(src_language, dst_language)
+                widgets = [prompt, Percentage(), ' ', Bar(), ' ', ETA()]
+                pbar = ProgressBar(widgets=widgets, maxval=len(regions)).start()
+                translated_transcripts = []
+                for i, transcript in enumerate(pool.imap(translator, transcripts)):
+                    translated_transcripts.append(transcript)
+                    pbar.update(i)
+                pbar.finish()
+                transcripts = translated_transcripts
+                # else:
+                #     print(
+                #         "Error: Subtitle translation requires specified Google Translate API key. "
+                #         "See --help for further information."
+                #     )
+                #     return 1
 
         except KeyboardInterrupt:
             pbar.finish()
