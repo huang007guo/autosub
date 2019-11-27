@@ -34,7 +34,7 @@ from autosub.constants import (
 from autosub.formatters import FORMATTERS
 
 DEFAULT_SUBTITLE_FORMAT = 'srt'
-DEFAULT_CONCURRENCY = 3
+DEFAULT_CONCURRENCY = 5
 DEFAULT_SRC_LANGUAGE = 'ja'
 DEFAULT_DST_LANGUAGE = 'zh-CN'
 
@@ -158,22 +158,21 @@ class Translator1(object): # pylint: disable=too-few-public-methods
     """
     def __init__(self, language, api_key, src, dst):
         self.language = language
-        self.api_key = api_key
-        self.service = build('translate', 'v2',
-                             developerKey=self.api_key)
+        #self.api_key = api_key
+        #self.service = build('translate', 'v2', developerKey=self.api_key)
         self.src = src
         self.dst = dst
-        self.translator = Translator(service_urls=[
-            'translate.google.cn',
-            # 'translate.google.com',
-            # 'translate.google.co.kr',
+        self.translator11 = Translator(service_urls=[
+            'translate.google.com',
+            'translate.google.co.kr',
+			'translate.google.cn',
         ])
 
     def __call__(self, sentence):
         try:
             if not sentence:
                 return None
-            return self.translator.translate(sentence, src=self.src, dest=self.dst).text
+            return self.translator11.translate(sentence, src=self.src, dest=self.dst).text
         except KeyboardInterrupt:
             return '翻译错误'
 
@@ -317,13 +316,13 @@ def generate_subtitles( # pylint: disable=too-many-locals,too-many-arguments
                 print(api_key)
                 # if api_key:
                 google_translate_api_key = api_key
-                translator = Translator1(dst_language, google_translate_api_key,
+                translatorex = Translator1(dst_language, google_translate_api_key,
                                         dst=dst_language,
                                         src=src_language)
                 prompt = "Translating from {0} to {1}: ".format(src_language, dst_language)
                 widgets = [prompt, Percentage(), ' ', Bar(), ' ', ETA()]
                 pbar = ProgressBar(widgets=widgets, maxval=len(regions)).start()
-                for i, transcript in enumerate(pool.imap(translator, transcripts)):
+                for i, transcript in enumerate(pool.imap(translatorex, transcripts)):
                     translated_transcripts.append(transcript)
                     pbar.update(i)
                 pbar.finish()
