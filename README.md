@@ -13,7 +13,12 @@ ffmpeg:写成绝对路径[__init__.py](./autosub/__init__.py).：
  apt install ffmpeg
 ```
 1. Install [ffmpeg](https://www.ffmpeg.org/).
-2. Run `pip install autosub`.
+-- 2. Run `pip install autosub`. --
+
+2. python setup.py install
+
+3. git clone git@github.com:huang007guo/py-googletrans.git
+    python setup.py install
 
 OR:
  ```
