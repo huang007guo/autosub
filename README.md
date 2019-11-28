@@ -20,6 +20,8 @@ ffmpeg:写成绝对路径[__init__.py](./autosub/__init__.py).：
 3. git clone git@github.com:huang007guo/py-googletrans.git
     python setup.py install
 
+    clone 安装master分支: {'client': 'webapp'} install的版本为: {client=t}
+
 OR:
  ```
    setup.py --help
