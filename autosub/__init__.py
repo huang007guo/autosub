@@ -35,6 +35,7 @@ from autosub.formatters import FORMATTERS
 
 DEFAULT_SUBTITLE_FORMAT = 'srt'
 DEFAULT_CONCURRENCY = 5
+DEFAULT_HEIGHT_CONCURRENCY = 10
 DEFAULT_SRC_LANGUAGE = 'ja'
 DEFAULT_DST_LANGUAGE = 'zh-CN'
 
@@ -163,9 +164,9 @@ class Translator1(object): # pylint: disable=too-few-public-methods
         self.src = src
         self.dst = dst
         self.translator11 = Translator(service_urls=[
+            'translate.google.cn',
             'translate.google.com',
             'translate.google.co.kr',
-			'translate.google.cn',
         ])
 
     def __call__(self, sentence):
@@ -282,9 +283,9 @@ def generate_subtitles( # pylint: disable=too-many-locals,too-many-arguments
 
     #分段
     regions = find_speech_regions(audio_filename)
-    print(regions)
 
     pool = multiprocessing.Pool(concurrency)
+    poolHeight = multiprocessing.Pool(DEFAULT_HEIGHT_CONCURRENCY)
     #转换为.flac临时文件音频
     converter = FLACConverter(source_path=audio_filename)
     recognizer = SpeechRecognizer(language=src_language, rate=audio_rate,
@@ -322,7 +323,7 @@ def generate_subtitles( # pylint: disable=too-many-locals,too-many-arguments
                 prompt = "Translating from {0} to {1}: ".format(src_language, dst_language)
                 widgets = [prompt, Percentage(), ' ', Bar(), ' ', ETA()]
                 pbar = ProgressBar(widgets=widgets, maxval=len(regions)).start()
-                for i, transcript in enumerate(pool.imap(translatorex, transcripts)):
+                for i, transcript in enumerate(poolHeight.imap(translatorex, transcripts)):
                     translated_transcripts.append(transcript)
                     pbar.update(i)
                 pbar.finish()
