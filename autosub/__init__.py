@@ -165,8 +165,8 @@ class Translator1(object): # pylint: disable=too-few-public-methods
         self.dst = dst
         self.translator11 = Translator(service_urls=[
             'translate.google.cn',
-            'translate.google.com',
-            'translate.google.co.kr',
+            # 'translate.google.com',
+            # 'translate.google.co.kr',
         ])
 
     def __call__(self, sentence):
@@ -284,8 +284,6 @@ def generate_subtitles( # pylint: disable=too-many-locals,too-many-arguments
     #分段
     regions = find_speech_regions(audio_filename)
 
-    pool = multiprocessing.Pool(concurrency)
-    poolHeight = multiprocessing.Pool(DEFAULT_HEIGHT_CONCURRENCY)
     #转换为.flac临时文件音频
     converter = FLACConverter(source_path=audio_filename)
     recognizer = SpeechRecognizer(language=src_language, rate=audio_rate,
@@ -300,6 +298,7 @@ def generate_subtitles( # pylint: disable=too-many-locals,too-many-arguments
                        ETA()]
             pbar = ProgressBar(widgets=widgets, maxval=len(regions)).start()
             extracted_regions = []
+            pool = multiprocessing.Pool(concurrency)
             for i, extracted_region in enumerate(pool.imap(converter, regions)):
                 extracted_regions.append(extracted_region)
                 pbar.update(i)
@@ -307,14 +306,14 @@ def generate_subtitles( # pylint: disable=too-many-locals,too-many-arguments
 
             widgets = ["Performing speech recognition: ", Percentage(), ' ', Bar(), ' ', ETA()]
             pbar = ProgressBar(widgets=widgets, maxval=len(regions)).start()
-
             for i, transcript in enumerate(pool.imap(recognizer, extracted_regions)):
                 transcripts.append(transcript)
                 pbar.update(i)
             pbar.finish()
-
+            pool.close()
             if src_language.split("-")[0] != dst_language.split("-")[0]:
                 print(api_key)
+                poolHeight = multiprocessing.Pool(DEFAULT_HEIGHT_CONCURRENCY)
                 # if api_key:
                 google_translate_api_key = api_key
                 translatorex = Translator1(dst_language, google_translate_api_key,
@@ -336,6 +335,7 @@ def generate_subtitles( # pylint: disable=too-many-locals,too-many-arguments
                     destFile = "{base}.{format}".format(base=base, format=subtitle_file_format)
                 with open(destFile, 'wb') as output_file:
                     output_file.write(formatted_subtitles.encode("utf-8"))
+                poolHeight.close()
                 # else:
                 #     print(
                 #         "Error: Subtitle translation requires specified Google Translate API key. "
