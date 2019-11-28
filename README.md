@@ -207,6 +207,7 @@ zu      Zulu
 # 字幕翻译器(strTranslate.py) 的使用
 
 ```
+    autosub RCT-726.1080p.raw.srt -T 1 -S ja -D zh-cn -C 10
     python strTranslate.py -S ja -D zh-cn -C 10 xxx.raw.srt
 ```
 

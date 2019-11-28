@@ -53,6 +53,7 @@ def main():
                         default=DEFAULT_SRC_LANGUAGE)
     parser.add_argument('-D', '--dst-language', help="Desired language for the subtitles",
                         default=DEFAULT_DST_LANGUAGE)
+    parser.add_argument('-T', '--translator', help="翻译字幕模式", type=int, default=0)
 
     args = parser.parse_args()
 
@@ -62,7 +63,7 @@ def main():
         srcLanguage=args.src_language,
         dstLanguage=args.dst_language,
         nowPath = os.getcwd()
-        print(concurrency,nowPath+sourcePath[0])
+        print(nowPath+sourcePath[0])
         subFile = open(sourcePath[0])
         subFileName = os.path.splitext(sourcePath[0])[0]
         subCon = subFile.readlines()

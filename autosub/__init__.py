@@ -224,7 +224,8 @@ def extract_audio(filename, channels=1, rate=44100):
     return temp.name, rate
 
 
-def find_speech_regions(filename, frame_width=4096, min_region_size=0.5, max_region_size=6): # pylint: disable=too-many-locals
+def find_speech_regions(filename, frame_width=4096, min_region_size=0.5,
+                        max_region_size=6):  # pylint: disable=too-many-locals
     """
     语音识别开始
     :param frame_width 读取声音数据大小
@@ -236,11 +237,11 @@ def find_speech_regions(filename, frame_width=4096, min_region_size=0.5, max_reg
     n_channels = reader.getnchannels()
     chunk_duration = float(frame_width) / rate
 
-    n_chunks = int(math.ceil(reader.getnframes()*1.0 / frame_width))
+    n_chunks = int(math.ceil(reader.getnframes() * 1.0 / frame_width))
     energies = []
 
     for _ in range(n_chunks):
-        #读取声音数据
+        # 读取声音数据
         chunk = reader.readframes(frame_width)
         energies.append(audioop.rms(chunk, sample_width * n_channels))
 
@@ -274,17 +275,17 @@ def generate_subtitles( # pylint: disable=too-many-locals,too-many-arguments
         dst_language=DEFAULT_DST_LANGUAGE,
         subtitle_file_format=DEFAULT_SUBTITLE_FORMAT,
         api_key=None,
-    ):
+):
     """
     Given an input audio/video file, generate subtitles in the specified language and format.
     """
-    #生成音频文件
+    # 生成音频文件
     audio_filename, audio_rate = extract_audio(source_path)
 
-    #分段
+    # 分段
     regions = find_speech_regions(audio_filename)
 
-    #转换为.flac临时文件音频
+    # 转换为.flac临时文件音频
     converter = FLACConverter(source_path=audio_filename)
     recognizer = SpeechRecognizer(language=src_language, rate=audio_rate,
                                   api_key=GOOGLE_SPEECH_API_KEY)
@@ -317,8 +318,8 @@ def generate_subtitles( # pylint: disable=too-many-locals,too-many-arguments
                 # if api_key:
                 google_translate_api_key = api_key
                 translatorex = Translator1(dst_language, google_translate_api_key,
-                                        dst=dst_language,
-                                        src=src_language)
+                                           dst=dst_language,
+                                           src=src_language)
                 prompt = "Translating from {0} to {1}: ".format(src_language, dst_language)
                 widgets = [prompt, Percentage(), ' ', Bar(), ' ', ETA()]
                 pbar = ProgressBar(widgets=widgets, maxval=len(regions)).start()
@@ -326,7 +327,7 @@ def generate_subtitles( # pylint: disable=too-many-locals,too-many-arguments
                     translated_transcripts.append(transcript)
                     pbar.update(i)
                 pbar.finish()
-                #翻译的字幕
+                # 翻译的字幕
                 timed_subtitles = [(r, t) for r, t in zip(regions, translated_transcripts) if t]
                 formatter = FORMATTERS.get(subtitle_file_format)
                 formatted_subtitles = formatter(timed_subtitles)
@@ -350,7 +351,7 @@ def generate_subtitles( # pylint: disable=too-many-locals,too-many-arguments
             print("Cancelling transcription")
             raise
         finally:
-            #原始字幕
+            # 原始字幕
             timed_subtitles = [(r, t) for r, t in zip(regions, transcripts) if t]
             formatter = FORMATTERS.get(subtitle_file_format)
             formatted_subtitles = formatter(timed_subtitles)
@@ -359,8 +360,6 @@ def generate_subtitles( # pylint: disable=too-many-locals,too-many-arguments
                 destFile = "{base}.raw.{format}".format(base=base, format=subtitle_file_format)
             with open(destFile, 'wb') as output_file:
                 output_file.write(formatted_subtitles.encode("utf-8"))
-
-
 
     os.remove(audio_filename)
 
@@ -424,6 +423,7 @@ def main():
                         action='store_true')
     parser.add_argument('--list-languages', help="List all available source/destination languages",
                         action='store_true')
+    parser.add_argument('-T', '--translator', help="翻译字幕模式", type=int, default=0)
 
     args = parser.parse_args()
 
@@ -439,24 +439,28 @@ def main():
             print("{code}\t{language}".format(code=code, language=language))
         return 0
 
-    if not validate(args):
-        return 1
+    if args.translator == 1:
+        print('translator sub')
+        import autosub.subTranslate
+        sys.exit(autosub.subTranslate.main())
+    else:
+        if not validate(args):
+            return 1
+        try:
+            subtitle_file_path = generate_subtitles(
+                source_path=args.source_path,
+                concurrency=args.concurrency,
+                src_language=args.src_language,
+                dst_language=args.dst_language,
+                api_key=args.api_key,
+                subtitle_file_format=args.format,
+                output=args.output,
+            )
+            print("Subtitles file created at {}".format(subtitle_file_path))
+        except KeyboardInterrupt:
+            return 1
 
-    try:
-        subtitle_file_path = generate_subtitles(
-            source_path=args.source_path,
-            concurrency=args.concurrency,
-            src_language=args.src_language,
-            dst_language=args.dst_language,
-            api_key=args.api_key,
-            subtitle_file_format=args.format,
-            output=args.output,
-        )
-        print("Subtitles file created at {}".format(subtitle_file_path))
-    except KeyboardInterrupt:
-        return 1
-
-    return 0
+        return 0
 
 
 if __name__ == '__main__':
