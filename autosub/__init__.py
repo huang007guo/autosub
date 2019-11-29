@@ -12,6 +12,7 @@ import argparse
 import audioop
 import math
 import multiprocessing
+from multiprocessing import Process
 import os
 import subprocess
 import sys
@@ -38,9 +39,10 @@ from autosub.formatters import FORMATTERS
 
 DEFAULT_SUBTITLE_FORMAT = 'srt'
 DEFAULT_CONCURRENCY = 5
-DEFAULT_HEIGHT_CONCURRENCY = 10
+DEFAULT_HEIGHT_CONCURRENCY = 5
 DEFAULT_SRC_LANGUAGE = 'ja'
 DEFAULT_DST_LANGUAGE = 'zh-CN'
+DEFAULT_ONCE_FILE = 3
 
 
 def percentile(arr, percent):
@@ -79,7 +81,7 @@ class FLACConverter(object): # pylint: disable=too-few-public-methods
                        "-y", "-i", self.source_path,
                        "-loglevel", "error", temp.name]
             use_shell = True if os.name == "nt" else False
-            print(command)
+            # print(command)
             subprocess.check_output(command, stdin=open(os.devnull), shell=use_shell)
             read_data = temp.read()
             temp.close()
@@ -179,7 +181,8 @@ class Translator1(object): # pylint: disable=too-few-public-methods
             if not sentence:
                 return None
             return self.translator11.translate(sentence, src=self.src, dest=self.dst).text
-        except KeyboardInterrupt:
+        except BaseException as e:
+            print(e)
             return '翻译错误'
 
 
@@ -225,7 +228,6 @@ def extract_audio(filename, channels=1, rate=44100):
                "-ac".encode("utf8"), str(channels).encode("utf8"), "-ar".encode("utf8"), str(rate).encode("utf8"),
                "-loglevel".encode("utf8"), "error".encode("utf8"), temp.name.encode("utf8")]
     use_shell = True if os.name == "nt" else False
-    print(command)
     subprocess.check_output(command, stdin=open(os.devnull), shell=use_shell)
     return temp.name, rate
 
@@ -233,7 +235,7 @@ def extract_audio(filename, channels=1, rate=44100):
 def find_speech_regions(filename, frame_width=4096, min_region_size=0.5,
                         max_region_size=6):  # pylint: disable=too-many-locals
     """
-    语音识别开始
+    语音分段
     :param frame_width 读取声音数据大小
     Perform voice activity detection on a given audio file.
     """
@@ -286,7 +288,7 @@ def generate_subtitles( # pylint: disable=too-many-locals,too-many-arguments
     Given an input audio/video file, generate subtitles in the specified language and format.
     """
     # 生成音频文件
-    nowPath = os.getcwd()
+    # nowPath = os.getcwd()
     # print(type(nowPath), type("\\"), type(source_path))
     # source_path = nowPath + "\\".encode("utf8") + source_path
 
@@ -325,7 +327,6 @@ def generate_subtitles( # pylint: disable=too-many-locals,too-many-arguments
             pbar.finish()
             pool.close()
             if src_language.split("-")[0] != dst_language.split("-")[0]:
-                print(api_key)
                 poolHeight = multiprocessing.Pool(DEFAULT_HEIGHT_CONCURRENCY)
                 # if api_key:
                 google_translate_api_key = api_key
@@ -356,7 +357,8 @@ def generate_subtitles( # pylint: disable=too-many-locals,too-many-arguments
                 #     )
                 #     return 1
 
-        except KeyboardInterrupt:
+        except BaseException as e:
+            print(e)
             pbar.finish()
             pool.terminate()
             pool.join()
@@ -374,7 +376,7 @@ def generate_subtitles( # pylint: disable=too-many-locals,too-many-arguments
                 output_file.write(formatted_subtitles.encode("utf-8"))
 
     os.remove(audio_filename)
-
+    print("Subtitles file created at ".encode("utf8") + destFile)
     return dest
 
 
@@ -409,6 +411,15 @@ def validate(args):
 
     return True
 
+def filterFileFun(fileName, *suffix):
+    try:
+        if isinstance(fileName, str):fileName=fileName.decode("gbk")
+        for nowSuffix in suffix:
+            if fileName.endswith(".".encode("utf8")+nowSuffix):
+                return True
+    except BaseException as e:
+        print (e)
+    return False
 
 def main():
     """
@@ -436,8 +447,12 @@ def main():
     parser.add_argument('--list-languages', help="List all available source/destination languages",
                         action='store_true')
     parser.add_argument('-T', '--translator', help="翻译字幕模式", type=int, default=0)
+    parser.add_argument('-N', '--number', help="一次处理的个数", type=int, default=DEFAULT_ONCE_FILE)
 
     args = parser.parse_args()
+
+    onceNum = args.number
+    source_path = args.source_path
 
     if args.list_formats:
         print("List of formats:")
@@ -450,26 +465,65 @@ def main():
         for code, language in sorted(LANGUAGE_CODES.items()):
             print("{code}\t{language}".format(code=code, language=language))
         return 0
-
+    # 字幕翻译
     if args.translator == 1:
         print('translator sub')
         import autosub.subTranslate
         sys.exit(autosub.subTranslate.main())
+    # 音频翻译
     else:
         if not validate(args):
             return 1
         try:
-            subtitle_file_path = generate_subtitles(
-                source_path=args.source_path,
-                concurrency=args.concurrency,
-                src_language=args.src_language,
-                dst_language=args.dst_language,
-                api_key=args.api_key,
-                subtitle_file_format=args.format,
-                output=args.output,
-            )
-            print("Subtitles file created at {}".format(subtitle_file_path))
-        except KeyboardInterrupt:
+            allFile = []
+            if not os.path.isdir(source_path):
+                allFile = [source_path]
+            else:
+                file_name_lists = []
+                for maindir, subdir, file_name_list in os.walk(source_path):
+                    # print("1:",maindir) #当前主目录
+                    # print("2:",subdir) #当前主目录下的所有目录
+                    # print("3:",file_name_list)  #当前主目录下的所有文件
+                    file_name_lists = file_name_lists + file_name_list
+                allFile = [source_path+"\\".encode("utf8")+x for x in file_name_lists if filterFileFun(x, "wmv", "avi", "mpeg", "mpg", "rm", "rmvb", "flv", "mp4", "mkv")]
+            print(allFile)
+            concurrencyNum = len(allFile) if len(allFile) < onceNum else onceNum
+            i = 0
+            nowProcessAll = []
+            for nowFile in allFile:
+                nowProcess = Process(target=generate_subtitles, args=(),
+                        kwargs={
+                            'source_path':nowFile,
+                            'concurrency':args.concurrency,
+                            'src_language':args.src_language,
+                            'dst_language':args.dst_language,
+                            'api_key':args.api_key,
+                            'subtitle_file_format':args.format,
+                            'output':args.output
+                        })
+                nowProcess.start()
+                nowProcessAll.append(nowProcess)
+                i = i+1
+                if i == concurrencyNum:
+                    i = 0
+                    for nowProcess in nowProcessAll:
+                        nowProcess.join()
+                    print("----------------Ok----------------------")
+                    nowProcessAll = []
+            print("all Ok")
+
+            # subtitle_file_path = generate_subtitles(
+            #     source_path=allFile[0],
+            #     concurrency=args.concurrency,
+            #     src_language=args.src_language,
+            #     dst_language=args.dst_language,
+            #     api_key=args.api_key,
+            #     subtitle_file_format=args.format,
+            #     output=args.output,
+            # )
+            # print("Subtitles file created at {}".format(subtitle_file_path))
+        except BaseException as e:
+            print(e)
             return 1
 
         return 0
