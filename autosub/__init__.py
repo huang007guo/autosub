@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Defines autosub's main functionality.
+!写了# -*- coding: utf-8 -*-后所有的手动定义的str都会变成unicode类型,必须使用encode(utf8)转为字符串!
 """
 
 #!/usr/bin/env python
@@ -19,7 +20,9 @@ import wave
 import json
 import requests
 from googletrans import Translator
-
+# import pdb
+# reload(sys)
+# sys.setdefaultencoding('utf8')
 try:
     from json.decoder import JSONDecodeError
 except ImportError:
@@ -60,6 +63,7 @@ class FLACConverter(object): # pylint: disable=too-few-public-methods
     Class for converting a region of an input audio or video file into a FLAC audio file
     """
     def __init__(self, source_path, include_before=0.25, include_after=0.25):
+        # 这里传进来的是临时文件名没有编码问题 无需 .encode("utf8")
         self.source_path = source_path
         self.include_before = include_before
         self.include_after = include_after
@@ -70,6 +74,7 @@ class FLACConverter(object): # pylint: disable=too-few-public-methods
             start = max(0, start - self.include_before)
             end += self.include_after
             temp = tempfile.NamedTemporaryFile(suffix='.flac', delete=False)
+            # 这里传进来的是临时文件名没有编码问题 无需 .encode("utf8")
             command = ["E:\\YOKA\\project\\autosub\\ffmpeg\\bin\\ffmpeg.exe", "-ss", str(start), "-t", str(end - start),
                        "-y", "-i", self.source_path,
                        "-loglevel", "error", temp.name]
@@ -200,7 +205,7 @@ def which(program):
                 return exe_file
     return None
 
-# def extract_audio(filename, channels=1, rate=16000):
+# def extract_audio(filename, channels=1, rate=16000): # 采样频率一般共分为22.05KHz、44.1KHz、48KHz三个等级，22.05KHz只能达到FM广播的声音品质，44.1KHz则是理论上的CD音质界限，//48KHz则更加精确一些。
 def extract_audio(filename, channels=1, rate=44100):
     """
     生成音频文件
@@ -208,16 +213,17 @@ def extract_audio(filename, channels=1, rate=44100):
     :param channels 音轨
     :param rate 采样率
     """
+    # pdb.set_trace() # 运行到这里会自动暂停
     temp = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
     if not os.path.isfile(filename):
-        print("The given file does not exist: {}".format(filename))
-        raise Exception("Invalid filepath: {}".format(filename))
+        print("The given file does not exist: {}".encode("utf8").format(filename))
+        raise Exception("Invalid filepath: {}".encode("utf8").format(filename))
     # if not which("ffmpeg"):
     #     print("ffmpeg: Executable not found on machine.")
     #     raise Exception("Dependency not found: ffmpeg")
-    command = ["E:\\YOKA\\project\\autosub\\ffmpeg\\bin\\ffmpeg.exe", "-y", "-i", filename,
-               "-ac", str(channels), "-ar", str(rate),
-               "-loglevel", "error", temp.name]
+    command = ["E:\\YOKA\\project\\autosub\\ffmpeg\\bin\\ffmpeg.exe".encode("utf8"), "-y".encode("utf8"), "-i".encode("utf8"), filename,
+               "-ac".encode("utf8"), str(channels).encode("utf8"), "-ar".encode("utf8"), str(rate).encode("utf8"),
+               "-loglevel".encode("utf8"), "error".encode("utf8"), temp.name.encode("utf8")]
     use_shell = True if os.name == "nt" else False
     print(command)
     subprocess.check_output(command, stdin=open(os.devnull), shell=use_shell)
@@ -280,6 +286,12 @@ def generate_subtitles( # pylint: disable=too-many-locals,too-many-arguments
     Given an input audio/video file, generate subtitles in the specified language and format.
     """
     # 生成音频文件
+    nowPath = os.getcwd()
+    # print(type(nowPath), type("\\"), type(source_path))
+    # source_path = nowPath + "\\".encode("utf8") + source_path
+
+    print(source_path)
+    # source_path = unicode(source_path,'utf-8')
     audio_filename, audio_rate = extract_audio(source_path)
 
     # 分段
@@ -333,7 +345,7 @@ def generate_subtitles( # pylint: disable=too-many-locals,too-many-arguments
                 formatted_subtitles = formatter(timed_subtitles)
                 if not dest:
                     base = os.path.splitext(source_path)[0]
-                    destFile = "{base}.{format}".format(base=base, format=subtitle_file_format)
+                    destFile = base + ".".encode("utf8") + subtitle_file_format.encode("utf8")
                 with open(destFile, 'wb') as output_file:
                     output_file.write(formatted_subtitles.encode("utf-8"))
                 poolHeight.close()
@@ -357,7 +369,7 @@ def generate_subtitles( # pylint: disable=too-many-locals,too-many-arguments
             formatted_subtitles = formatter(timed_subtitles)
             if not dest:
                 base = os.path.splitext(source_path)[0]
-                destFile = "{base}.raw.{format}".format(base=base, format=subtitle_file_format)
+                destFile = base + ".raw.".encode("utf8") + subtitle_file_format.encode("utf8")
             with open(destFile, 'wb') as output_file:
                 output_file.write(formatted_subtitles.encode("utf-8"))
 
