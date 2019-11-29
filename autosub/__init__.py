@@ -484,8 +484,8 @@ def main():
                     # print("1:",maindir) #当前主目录
                     # print("2:",subdir) #当前主目录下的所有目录
                     # print("3:",file_name_list)  #当前主目录下的所有文件
-                    file_name_lists = file_name_lists + file_name_list
-                allFile = [source_path+"\\".encode("utf8")+x for x in file_name_lists if filterFileFun(x, "wmv", "avi", "mpeg", "mpg", "rm", "rmvb", "flv", "mp4", "mkv")]
+                    file_name_lists = file_name_lists + [maindir+"\\".encode("utf8")+x for x in file_name_list]
+                allFile = [x for x in file_name_lists if filterFileFun(x, "wmv", "avi", "mpeg", "mpg", "rm", "rmvb", "flv", "mp4", "mkv")]
             print(allFile)
             concurrencyNum = len(allFile) if len(allFile) < onceNum else onceNum
             i = 0
@@ -507,7 +507,10 @@ def main():
                 if i == concurrencyNum:
                     i = 0
                     for nowProcess in nowProcessAll:
-                        nowProcess.join()
+						try:
+							nowProcess.join()
+						except BaseException as e:
+							print(e)
                     print("----------------Ok----------------------")
                     nowProcessAll = []
             print("all Ok")
