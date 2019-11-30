@@ -448,6 +448,7 @@ def main():
                         action='store_true')
     parser.add_argument('-T', '--translator', help="翻译字幕模式", type=int, default=0)
     parser.add_argument('-N', '--number', help="一次处理的个数", type=int, default=DEFAULT_ONCE_FILE)
+	parser.add_argument('-SD', '--shutdown', help="转换完关机", type=int, default=0)
 
     args = parser.parse_args()
 
@@ -489,6 +490,7 @@ def main():
             print(allFile)
             concurrencyNum = len(allFile) if len(allFile) < onceNum else onceNum
             i = 0
+			j = 0
             nowProcessAll = []
             for nowFile in allFile:
                 nowProcess = Process(target=generate_subtitles, args=(),
@@ -504,7 +506,8 @@ def main():
                 nowProcess.start()
                 nowProcessAll.append(nowProcess)
                 i = i+1
-                if i == concurrencyNum:
+				j = j+1
+                if i == concurrencyNum or j == len(allFile):
                     i = 0
                     for nowProcess in nowProcessAll:
 						try:
@@ -528,7 +531,12 @@ def main():
         except BaseException as e:
             print(e)
             return 1
-
+		finally:
+            # 自动关机
+			if args.shutdown == 1:
+				print('60s after shutdown pc')
+				os.system('shutdown -s -t 60')
+		
         return 0
 
 
